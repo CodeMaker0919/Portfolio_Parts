@@ -1,0 +1,709 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desk Assistant Robot Arm</title>
+  <meta name="description" content="From-scratch 4-5 DOF desk assistant robot arm — mechanical design, electronics, software, and build progress." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --surface: #12181f;
+      --surface-2: #1a222c;
+      --border: #2a3544;
+      --text: #e8eef6;
+      --muted: #8b9bb0;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --green: #22c55e;
+      --orange: #f59e0b;
+      --purple: #a78bfa;
+      --radius: 12px;
+      --max: 900px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    /* subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    /* Header */
+    header {
+      padding: 3.5rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(1.9rem, 5vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.1rem;
+      max-width: 560px;
+    }
+
+    /* Nav */
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.75rem;
+    }
+
+    nav a {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0.4rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+
+    nav a:hover {
+      color: var(--text);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h2 .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.6rem;
+      color: var(--text);
+    }
+
+    p {
+      color: var(--muted);
+      margin-bottom: 0.85rem;
+    }
+
+    ul, ol {
+      color: var(--muted);
+      padding-left: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    li strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Cards */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.15rem 1.25rem;
+    }
+
+    .card h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    .card p, .card li {
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .card ul {
+      padding-left: 1.1rem;
+      margin: 0;
+    }
+
+    /* Specs table-like */
+    .spec-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .spec-list li {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+
+    .spec-list li:last-child {
+      border-bottom: none;
+    }
+
+    .spec-list .label {
+      color: var(--muted);
+      min-width: 140px;
+      font-weight: 500;
+    }
+
+    .spec-list .value {
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+    }
+
+    /* Phase cards */
+    .phase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .phase-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .phase-title {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    .phase-cost {
+      font-size: 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--green);
+      background: rgba(34, 197, 94, 0.12);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .phase ul {
+      margin-bottom: 0;
+    }
+
+    /* Status badges */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+    }
+
+    .status.done {
+      color: var(--green);
+      background: rgba(34, 197, 94, 0.12);
+    }
+
+    .status.next {
+      color: var(--orange);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .status::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Code / mono */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88em;
+      background: var(--surface-2);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      color: var(--purple);
+    }
+
+    /* Shopping list */
+    .shopping {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .shopping-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      padding: 0.7rem 1.15rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.92rem;
+      align-items: center;
+    }
+
+    .shopping-row:last-child {
+      border-bottom: none;
+    }
+
+    .shopping-row.total {
+      background: var(--surface-2);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .shopping-row .item {
+      color: var(--muted);
+    }
+
+    .shopping-row .price {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* Architecture roles */
+    .roles {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .role {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 1rem;
+      padding: 0.9rem 1.1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      align-items: start;
+    }
+
+    .role-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .role-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 560px) {
+      .role {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+      }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">From-scratch build</div>
+      <h1>Desk Assistant Robot Arm</h1>
+      <p class="subtitle">
+        A standalone 4–5 DOF arm that hands you objects (starting with textbooks). 
+        Built from scratch — mechanics, electronics, and software.
+      </p>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#phases">Build Plan</a>
+        <a href="#shopping">Phase 1 Parts</a>
+        <a href="#progress">Progress</a>
+        <a href="#software">Software</a>
+      </nav>
+    </header>
+
+    <!-- Overview -->
+    <section id="overview">
+      <h2><span class="dot"></span> Project Overview</h2>
+      <p>
+        Building a fully standalone desk assistant robot arm. Primary v1 goal: grab textbooks from the desk and hand them over. 
+        Every major component is designed and built in-house (no kits).
+      </p>
+
+      <ul class="spec-list">
+        <li>
+          <span class="label">Degrees of freedom</span>
+          <span class="value">4–5 DOF arm + parallel gripper</span>
+        </li>
+        <li>
+          <span class="label">Servos</span>
+          <span class="value">MG996R ×5 (6 bought, 1 spare)</span>
+        </li>
+        <li>
+          <span class="label">Servo specs</span>
+          <span class="value">40.3 × 20 × 36.6 mm · 47.6 mm total · 9.4–11 kgf·cm</span>
+        </li>
+        <li>
+          <span class="label">Material</span>
+          <span class="value">PETG (stronger &amp; more heat-resistant than PLA)</span>
+        </li>
+        <li>
+          <span class="label">CAD</span>
+          <span class="value">Onshape</span>
+        </li>
+        <li>
+          <span class="label">Gripper</span>
+          <span class="value">Gear-driven parallel, two fingers, textbook-spine ready</span>
+        </li>
+        <li>
+          <span class="label">Vision / Voice</span>
+          <span class="value">Full YOLO + full Whisper (no lightweight models)</span>
+        </li>
+        <li>
+          <span class="label">Sim / RL</span>
+          <span class="value">MuJoCo (macOS) · PPO before real hardware</span>
+        </li>
+        <li>
+          <span class="label">Laptop</span>
+          <span class="value">Mac</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Architecture -->
+    <section id="architecture">
+      <h2><span class="dot"></span> Architecture Decisions</h2>
+      <ul>
+        <li><strong>Fully standalone</strong> — not tethered to the laptop.</li>
+        <li><strong>Arduino Mega</strong> handles all servo PWM + sensor readings across every phase.</li>
+        <li><strong>No Raspberry Pi 4</strong> — dropped from the plan.</li>
+        <li><strong>Pi 5 8GB</strong> runs full YOLO + OpenCV + full Whisper + decision logic and commands the Arduino over USB serial.</li>
+        <li><strong>No PCA9685</strong> — Mega has enough native PWM pins.</li>
+        <li><strong>Power split</strong>: 5V 8A DC supply for servos; dedicated PSUs for Pi boards.</li>
+        <li><strong>LCD</strong> shows arm status and voice commands.</li>
+      </ul>
+
+      <h3>Permanent microcontroller roles</h3>
+      <div class="roles">
+        <div class="role">
+          <div class="role-name">Arduino Mega</div>
+          <div class="role-desc">Servo PWM control + all sensor readings (every phase)</div>
+        </div>
+        <div class="role">
+          <div class="role-name">Pi 5 8GB</div>
+          <div class="role-desc">Full YOLO + OpenCV (Phase 2+) · Full Whisper + decisions + Arduino commands (Phase 3+)</div>
+        </div>
+        <div class="role">
+          <div class="role-name">Jetson Nano</div>
+          <div class="role-desc">Advanced AI, 3D mapping, pattern learning (Phase 5+)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phases -->
+    <section id="phases">
+      <h2><span class="dot"></span> 6-Phase Build Plan</h2>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 1 — Basic Movement</span>
+          <span class="phase-cost">~$112–142</span>
+        </div>
+        <ul>
+          <li>Arduino Mega — servo PWM + LCD</li>
+          <li>MG996R ×6 — arm joints + gripper</li>
+          <li>I2C LCD, 5V 8A PSU, breadboard, jumpers, screws</li>
+          <li>HC-SR04 proximity (safety stop)</li>
+          <li>ACS712 ×6 current sensors (servo protection)</li>
+          <li>PETG structure on 3D printer</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 2 — Vision</span>
+          <span class="phase-cost">+$40</span>
+        </div>
+        <ul>
+          <li>USB 1080P camera (with mic)</li>
+          <li>Micro USB OTG adapter for Pi 5</li>
+          <li>VL53L0X ToF sensor — exact distance before grip</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 3 — Voice Control</span>
+          <span class="phase-cost">+$190</span>
+        </div>
+        <ul>
+          <li>Raspberry Pi 5 8GB</li>
+          <li>USB mic / camera mic + 3.5mm speaker</li>
+          <li>MicroSD, MPU6050 IMU, load cell + HX711</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 4 — Precision + Feedback</span>
+          <span class="phase-cost">+$50–80</span>
+        </div>
+        <ul>
+          <li>Force sensors ×2 (one per finger)</li>
+          <li>Rotary encoders ×4 (base, shoulder, elbow, wrist pitch) for closed-loop control</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 5 — Full Autonomy</span>
+          <span class="phase-cost">+$250–350</span>
+        </div>
+        <ul>
+          <li>Intel RealSense D435 + Nvidia Jetson Nano</li>
+          <li>Slip sensors ×2, LiPo pack, Arducam Module 3, USB audio adapter</li>
+          <li>3D mapping, custom object recognition, gesture recognition</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-title">Phase 6 — Mobile Manipulator</span>
+          <span class="phase-cost">Future</span>
+        </div>
+        <ul>
+          <li>Differential-drive wheel base (2 powered + 2 casters)</li>
+          <li>L298N motor driver, LiDAR, larger LiPo</li>
+          <li>Motorized docking platform at desk edge + magnetic lock</li>
+          <li>ROS2, SLAM, navigation stack</li>
+          <li>Advanced tasks: MacBook charging, drawer access, water bottle retrieval</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Shopping -->
+    <section id="shopping">
+      <h2><span class="dot"></span> Phase 1 Shopping List</h2>
+      <p>Nothing ordered yet (as of 2026-09-20).</p>
+      <div class="shopping">
+        <div class="shopping-row">
+          <span class="item">MG996R ×6 (KEAcvise)</span>
+          <span class="price">$21.99</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">Arduino Mega</span>
+          <span class="price">~$35</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">I2C LCD screen</span>
+          <span class="price">~$6</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">Jumper wires ELEGOO 120pc</span>
+          <span class="price">$6.98</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">5V 8A DC power supply (BTF-LIGHTING)</span>
+          <span class="price">$25.99</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">Barrel jack screw terminal adapter</span>
+          <span class="price">$3.99</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">USB-A to USB-B cable</span>
+          <span class="price">~$6</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">M3 screws 620pc (Taiss)</span>
+          <span class="price">$3.49</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">M2 screws 900pc</span>
+          <span class="price">$6.58</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">Proximity sensor HC-SR04</span>
+          <span class="price">~$3</span>
+        </div>
+        <div class="shopping-row">
+          <span class="item">Current sensors ACS712 ×6</span>
+          <span class="price">~$24</span>
+        </div>
+        <div class="shopping-row total">
+          <span class="item">Phase 1 total</span>
+          <span class="price">~$142</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Progress -->
+    <section id="progress">
+      <h2><span class="dot"></span> Build Progress</h2>
+      <div class="card-grid">
+        <div class="card">
+          <h4><span class="status done">Done</span></h4>
+          <ul>
+            <li>Tinkercad sim — Arduino Uno + 6 servos + LCD working</li>
+            <li>Key lesson: Tinkercad uses <code>Adafruit_LiquidCrystal</code>, not <code>LiquidCrystal_I2C</code></li>
+            <li>Key lesson: shared ground required for signals</li>
+            <li>MuJoCo installed &amp; working (PyBullet incompatible with macOS 26)</li>
+            <li>Full MuJoCo sim: 5-joint arm, desk, blue textbook, reach/home sequence</li>
+            <li>Sim file: <code>~/Desktop/Projects/robot-arm/full_sim.py</code> (run with <code>mjpython</code>)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4><span class="status next">Next</span></h4>
+          <ul>
+            <li>Model MG996R servo in Onshape (40.3 × 20 × 36.6 mm box)</li>
+            <li>Continue mechanical CAD for arm links &amp; gripper</li>
+            <li>Order Phase 1 parts</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Software -->
+    <section id="software">
+      <h2><span class="dot"></span> Software Stack by Phase</h2>
+      <ul class="spec-list">
+        <li>
+          <span class="label">Phase 1</span>
+          <span class="value">Arduino C++ Servo lib · Python + PySerial on laptop</span>
+        </li>
+        <li>
+          <span class="label">Phase 2</span>
+          <span class="value">YOLO + OpenCV on Pi 5</span>
+        </li>
+        <li>
+          <span class="label">Phase 3</span>
+          <span class="value">Whisper on Pi 5 · text-to-speech</span>
+        </li>
+        <li>
+          <span class="label">Phase 4</span>
+          <span class="value">PID closed-loop on Arduino · force thresholds</span>
+        </li>
+        <li>
+          <span class="label">Phase 5</span>
+          <span class="value">3D reconstruction · PPO RL · pattern learning on Jetson</span>
+        </li>
+        <li>
+          <span class="label">Phase 6</span>
+          <span class="value">ROS2 · SLAM · navigation stack</span>
+        </li>
+      </ul>
+    </section>
+
+    <footer>
+      Desk Assistant Robot Arm · Built from scratch · Updated Sep 2026
+    </footer>
+  </div>
+</body>
+</html>
